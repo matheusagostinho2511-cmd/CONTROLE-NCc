@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Controle de NCs 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+body{background:#f0f4f8;padding:20px;color:#1a202c;font-size:14px}
+h1{font-size:1.3rem;font-weight:700;color:#2d3748;margin-bottom:3px}
+.subtitle{font-size:.82rem;color:#718096;margin-bottom:16px}
+.tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:2px solid #e2e8f0;flex-wrap:wrap}
+.tab{padding:8px 18px;cursor:pointer;font-size:.82rem;font-weight:600;color:#718096;border-radius:8px 8px 0 0;border:2px solid transparent;border-bottom:none;transition:all .15s}
+.tab.active{color:#667eea;border-color:#e2e8f0;border-bottom-color:white;background:white;margin-bottom:-2px}
+.tab:hover:not(.active){color:#4a5568;background:#edf2f7}
+.tab-content{display:none}.tab-content.active{display:block}
+.stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.stat-card{background:white;border-radius:10px;padding:12px 16px;flex:1;min-width:95px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.stat-card .val{font-size:1.5rem;font-weight:700}
+.stat-card .lbl{font-size:.68rem;color:#a0aec0;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.s-red .val{color:#e53e3e}.s-orange .val{color:#dd6b20}.s-green .val{color:#38a169}.s-blue .val{color:#3182ce}.s-purple .val{color:#667eea}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.search-input,.filter-select{padding:7px 11px;border:1px solid #cbd5e0;border-radius:7px;font-size:.8rem;outline:none;background:white}
+.search-input{width:190px}
+.search-input:focus,.filter-select:focus{border-color:#667eea}
+.btn{padding:7px 14px;border:none;border-radius:7px;font-size:.8rem;cursor:pointer;font-weight:600;transition:all .15s}
+.btn-primary{background:#667eea;color:white}.btn-primary:hover{background:#5a67d8}
+.btn-print{background:#48bb78;color:white}.btn-print:hover{background:#38a169}
+.btn-danger{background:#fc8181;color:white}.btn-danger:hover{background:#e53e3e}
+.drive-status-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;font-size:.75rem;font-weight:600;margin-bottom:12px;transition:all .3s}
+.drive-status-bar.syncing{background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8}
+.drive-status-bar.saved{background:#f0fff4;color:#276749;border:1px solid #c6f6d5}
+.drive-status-bar.error{background:#fff5f5;color:#c53030;border:1px solid #fed7d7}
+.drive-status-bar.loading{background:#faf5ff;color:#553c9a;border:1px solid #e9d8fd}
+.drive-status-bar.offline{background:#fffaf0;color:#c05621;border:1px solid #feebc8}
+.drive-status-bar.config{background:#fff8e1;color:#7b5e00;border:1px solid #ffe082}
+.spinner{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.table-wrap{background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+thead tr{background:#f7fafc}
+th{padding:10px 11px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#718096;font-weight:600;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+td{padding:10px 11px;font-size:.79rem;border-bottom:1px solid #f0f4f8;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.row-vencido td{background:#fff5f5}
+tr.row-breve td{background:#fffaf0}
+tr.row-atencao td{background:#fffff0}
+tr.row-emprazo td{background:#f0fff4}
+tr.row-entregue td{background:#f7fafc}
+tr:hover td{filter:brightness(.97)}
+.month-row td{background:#edf2f7;font-weight:700;font-size:.76rem;color:#4a5568;padding:6px 11px;letter-spacing:.04em}
+.caso-text{font-weight:600;color:#2d3748;max-width:240px;word-break:break-word;line-height:1.35}
+.adv-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.b-AC{background:#e9d8fd;color:#553c9a}.b-Daniela{background:#bee3f8;color:#2b6cb0}
+.b-Gustavo{background:#c6f6d5;color:#276749}.b-Guilherme{background:#feebc8;color:#7b341e}
+.b-Olivia{background:#fed7e2;color:#97266d}.b-Lena{background:#e2e8f0;color:#4a5568}.b-Luis{background:#d6bcfa;color:#44337a}
+.cart-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:700;background:#ebf8ff;color:#2b6cb0}
+.status-badge{padding:2px 8px;border-radius:11px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.sv{background:#fed7d7;color:#c53030}.sb{background:#feebc8;color:#c05621}
+.sa{background:#fef9c3;color:#854d0e}.se{background:#c6f6d5;color:#276749}
+.sd{background:#e2e8f0;color:#4a5568}.sat{background:#fed7d7;color:#c53030}
+.obs-text{font-size:.7rem;color:#718096;font-style:italic;max-width:150px;word-break:break-word}
+.actions{display:flex;gap:4px}
+.icon-btn{background:none;border:1px solid #e2e8f0;border-radius:5px;padding:3px 6px;cursor:pointer;font-size:.7rem;color:#718096;transition:all .15s}
+.icon-btn:hover{border-color:#667eea;color:#667eea;background:#f0f4ff}
+.icon-btn.del:hover{border-color:#fc8181;color:#e53e3e;background:#fff5f5}
+.icon-btn.undo:hover{border-color:#ed8936;color:#c05621;background:#fffaf0}
+.empty{text-align:center;padding:36px;color:#a0aec0;font-size:.85rem}
+.resumo-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:700px){.resumo-grid{grid-template-columns:1fr}}
+.card{background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:18px}
+.card h3{font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #e2e8f0}
+.adv-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;border-radius:8px;background:#f7fafc}
+.adv-row:hover{background:#edf2f7}
+.adv-name{font-weight:600;font-size:.82rem;min-width:110px}
+.bar-wrap{flex:1;background:#e2e8f0;border-radius:4px;height:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;background:#667eea;transition:width .4s}
+.adv-count{font-size:.78rem;color:#718096;min-width:28px;text-align:right;font-weight:700}
+.cart-counts{font-size:.7rem;color:#a0aec0;min-width:140px;text-align:right}
+.dist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:700px){.dist-grid{grid-template-columns:1fr}}
+.dist-card{background:white;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:16px}
+.dist-card h3{font-size:.85rem;font-weight:700;margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #e2e8f0}
+.dist-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:7px;margin-bottom:6px;font-size:.8rem}
+.dist-1{background:#dbeafe;color:#1d4ed8;font-weight:700;border:2px solid #93c5fd}
+.dist-2,.dist-3{background:#dcfce7;color:#166534;font-weight:600}
+.dist-mid{background:#fef9c3;color:#854d0e}
+.dist-last{background:#fee2e2;color:#991b1b}
+.dist-normal{background:#f7fafc;color:#4a5568}
+.pos-label{font-weight:700;font-size:.72rem;min-width:30px}
+.qty-badge{padding:1px 7px;border-radius:10px;font-size:.7rem;font-weight:700;background:rgba(0,0,0,.08)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:white;border-radius:14px;padding:26px;width:420px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal h2{font-size:1rem;margin-bottom:16px;color:#2d3748}
+.form-group{margin-bottom:11px}
+.form-group label{display:block;font-size:.75rem;color:#718096;margin-bottom:4px;font-weight:600}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:.82rem;outline:none;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#667eea}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.modal-actions button{padding:8px 16px;border-radius:7px;font-size:.82rem;cursor:pointer;font-weight:600;border:none}
+.btn-cancel{background:#edf2f7;color:#718096}
+
+/* Modal de configuração */
+.config-modal{background:white;border-radius:14px;padding:28px;width:480px;max-width:95vw;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.config-modal h2{font-size:1.1rem;margin-bottom:6px;color:#2d3748}
+.config-modal p{font-size:.8rem;color:#718096;margin-bottom:16px;line-height:1.5}
+.config-modal ol{font-size:.8rem;color:#4a5568;padding-left:18px;margin-bottom:16px;line-height:1.8}
+.config-modal ol li{margin-bottom:4px}
+.config-modal code{background:#f0f4f8;padding:2px 6px;border-radius:4px;font-size:.78rem;color:#553c9a;font-family:monospace}
+.url-input{width:100%;padding:10px;border:2px solid #667eea;border-radius:8px;font-size:.82rem;outline:none;font-family:monospace;color:#2d3748}
+.url-input:focus{border-color:#5a67d8;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
+
+#loadingOverlay{position:fixed;inset:0;background:rgba(255,255,255,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#loadingOverlay .load-icon{font-size:2.5rem}
+#loadingOverlay .load-text{font-size:.95rem;font-weight:600;color:#4a5568}
+#loadingOverlay .load-sub{font-size:.78rem;color:#a0aec0}
+
+@media print{
+  body{background:white;padding:0;font-size:11px}
+  .no-print{display:none!important}
+  .print-only{display:block!important}
+  .tab-content{display:block!important}
+  .tabs{display:none}
+  .table-wrap{box-shadow:none;border:1px solid #ddd}
+  .modal-bg{display:none!important}
+  h1{font-size:1.1rem}
+  @page{margin:1.5cm}
+}
+.print-only{display:none}
+.print-header{margin-bottom:12px}
+.print-header h2{font-size:.95rem;color:#2d3748;margin-bottom:2px}
+.print-header p{font-size:.75rem;color:#718096}
+.section-break{margin-top:24px}
+</style>
+</head>
+<body>
+
+<!-- Overlay de carregamento -->
+<div id="loadingOverlay">
+  <div class="load-icon">☁️</div>
+  <div class="spinner" style="width:28px;height:28px;border-width:3px;border-color:#667eea;border-top-color:transparent"></div>
+  <div class="load-text" id="loadText">Conectando ao Google Drive...</div>
+  <div class="load-sub" id="loadSub">Aguarde</div>
+</div>
+
+<!-- Modal de configuração inicial -->
+<div class="modal-bg" id="configModal">
+  <div class="config-modal">
+    <h2>⚙️ Configuração do Google Drive</h2>
+    <p>Para sincronizar os dados, você precisa configurar o Apps Script uma única vez. Siga os passos:</p>
+    <ol>
+      <li>Acesse <strong>script.google.com</strong> e crie um <strong>Novo projeto</strong></li>
+      <li>Apague o código existente e cole o conteúdo do arquivo <code>COLE_NO_APPS_SCRIPT.gs</code></li>
+      <li>Clique em <strong>Implantar → Nova implantação</strong></li>
+      <li>Tipo: <strong>Aplicativo Web</strong> · Executar como: <strong>Eu</strong> · Acesso: <strong>Qualquer pessoa</strong></li>
+      <li>Clique em <strong>Implantar</strong> e copie a URL gerada</li>
+      <li>Cole a URL abaixo e clique em Conectar</li>
+    </ol>
+    <div class="form-group">
+      <label>URL do Apps Script</label>
+      <input class="url-input" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button class="btn-cancel" style="border:none;cursor:pointer;padding:8px 16px;border-radius:7px;font-weight:600" onclick="usarSemDrive()">Usar sem Drive (local)</button>
+      <button class="btn btn-primary" onclick="conectarScript()">☁️ Conectar</button>
+    </div>
+  </div>
+</div>
+
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+  <div>
+    <h1>⚖️ Controle de NCs — 2026</h1>
+    <p class="subtitle">Prazo: 10 dias úteis · Equalização por carteira · <span style="color:#4285f4" id="subtitleSync">☁️ Sincronizado com Google Drive</span></p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn no-print" style="background:#e2e8f0;color:#4a5568" onclick="abrirConfig()" title="Configurar Drive">⚙️ Drive</button>
+    <button class="btn btn-print no-print" onclick="window.print()">🖨️ Imprimir</button>
+    <button class="btn btn-danger no-print" onclick="resetData()">🗑️ Resetar</button>
+  </div>
+</div>
+
+<!-- Barra de status -->
+<div class="drive-status-bar loading no-print" id="driveStatusBar">
+  <span class="spinner" id="driveSpinner"></span>
+  <span id="driveStatusText">Conectando...</span>
+</div>
+
+<div class="tabs no-print">
+  <div class="tab active" onclick="showTab('controle')">📋 Controle NC</div>
+  <div class="tab" onclick="showTab('resumo')">📊 Resumo por Advogado</div>
+  <div class="tab" onclick="showTab('dist')">📦 Distribuição de Carteiras</div>
+</div>
+
+<!-- ABA 1 -->
+<div class="tab-content active" id="tab-controle">
+  <div class="stats" id="stats-main"></div>
+  <div class="top-bar">
+    <div class="filters">
+      <input class="search-input" id="search" placeholder="🔍 Buscar..." oninput="renderControle()"/>
+      <select class="filter-select" id="f-adv" onchange="renderControle()">
+        <option value="">Todos advogados</option>
+        <option>Anna Carolina</option><option>Daniela</option><option>Gustavo</option>
+        <option>Guilherme</option><option>Olivia</option><option>Lena</option><option>Luis</option>
+      </select>
+      <select class="filter-select" id="f-cart" onchange="renderControle()">
+        <option value="">Todas carteiras</option>
+        <option>AUTOS</option><option>BANK</option><option>CONSIG</option>
+      </select>
+      <select class="filter-select" id="f-stat" onchange="renderControle()">
+        <option value="">Todos status</option>
+        <option value="vencido">🔴 Vencido</option>
+        <option value="breve">🟠 Vence em breve</option>
+        <option value="atencao">🟡 Atenção</option>
+        <option value="emprazo">✅ Em prazo</option>
+        <option value="entregue">📦 Entregue</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">+ Nova NC</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Advogado</th><th>Carteira</th><th>NC / Caso</th>
+        <th>Distribuição</th><th>Prazo Final</th><th>Entrega</th>
+        <th>Status</th><th>Obs.</th><th class="no-print">Ações</th>
+      </tr></thead>
+      <tbody id="tbody-controle"></tbody>
+    </table>
+    <div class="empty" id="empty-controle" style="display:none">Nenhum registro encontrado.</div>
+  </div>
+</div>
+
+<!-- ABA 2 -->
+<div class="tab-content" id="tab-resumo">
+  <div class="print-only print-header section-break">
+    <h2>📊 Resumo por Advogado</h2><p id="print-date-resumo"></p>
+  </div>
+  <div class="resumo-grid" id="resumo-content"></div>
+</div>
+
+<!-- ABA 3 -->
+<div class="tab-content" id="tab-dist">
+  <div class="print-only print-header section-break">
+    <h2>📦 Distribuição de Carteiras</h2><p id="print-date-dist"></p>
+  </div>
+  <div style="background:white;border-radius:10px;padding:14px 18px;margin-bottom:14px;font-size:.8rem;color:#4a5568;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+    📌 <strong>Regra:</strong> Para cada carteira, o advogado com <strong>MENOS NCs</strong> entra primeiro. Em empate, usa-se o total geral.
+  </div>
+  <div class="dist-grid" id="dist-content"></div>
+  <div style="margin-top:14px" id="dist-table-wrap"></div>
+</div>
+
+<!-- MODAL NC -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Nova NC</h2>
+    <div class="form-group">
+      <label>Mês de Referência</label>
+      <select id="inp-mes">
+        <option>JANEIRO 2026</option><option>FEVEREIRO 2026</option><option>MARÇO 2026</option>
+        <option selected>ABRIL 2026</option><option>MAIO 2026</option><option>JUNHO 2026</option>
+        <option>JULHO 2026</option><option>AGOSTO 2026</option><option>SETEMBRO 2026</option>
+        <option>OUTUBRO 2026</option><option>NOVEMBRO 2026</option><option>DEZEMBRO 2026</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Advogado</label>
+        <select id="inp-adv">
+          <option>Anna Carolina</option><option>Daniela</option><option>Gustavo</option>
+          <option>Guilherme</option><option>Olivia</option><option>Lena</option><option>Luis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Carteira</label>
+        <select id="inp-carteira"><option>AUTOS</option><option>BANK</option><option>CONSIG</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>NC / Caso</label><input id="inp-caso" placeholder="Nome do caso ou cliente"/></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data Distribuição</label>
+        <input id="inp-dist" type="date" oninput="atualizarPrazoModal()"/>
+        <div id="prazo-preview" style="margin-top:5px;font-size:.75rem;color:#667eea;font-weight:600;min-height:18px"></div>
+      </div>
+      <div class="form-group"><label>Data Entrega (se já entregue)</label><input id="inp-entrega" type="date"/></div>
+    </div>
+    <div class="form-group"><label>Observações</label><textarea id="inp-obs" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" style="border:none;cursor:pointer;padding:8px 16px;border-radius:7px;font-weight:600" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNC()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIGURAÇÃO — Cole aqui a URL do Apps Script após implantar
+// ══════════════════════════════════════════════════════════════
+const APPS_SCRIPT_URL = localStorage.getItem('nc_script_url') || 'https://script.google.com/macros/s/AKfycbzQXOSDEQgF6kCDoj0eRo51td6FTdorrG7muGKA5tgtABs-kPQhtw_Vs_fsn1UyeFZTfg/exec';
+// ══════════════════════════════════════════════════════════════
+
+const HIST = {
+  'Guilherme':    {BANK:2,  AUTOS:10, CONSIG:3},
+  'Olivia':       {BANK:3,  AUTOS:12, CONSIG:0},
+  'Daniela':      {BANK:6,  AUTOS:13, CONSIG:3},
+  'Gustavo':      {BANK:6,  AUTOS:13, CONSIG:8},
+  'Lena':         {BANK:4,  AUTOS:23, CONSIG:0},
+  'Luis':         {BANK:6,  AUTOS:19, CONSIG:4},
+  'Anna Carolina':{BANK:4,  AUTOS:18, CONSIG:7}
+};
+const ADVOGADOS = ['Anna Carolina','Daniela','Gustavo','Guilherme','Olivia','Lena','Luis'];
+const CARTEIRAS = ['BANK','AUTOS','CONSIG'];
+
+const DADOS_INICIAIS = [
+  {id:1,mes:"JANEIRO 2026",advogado:"Anna Carolina",carteira:"BANK",caso:"PC NOGUEIRA",distribuicao:"2026-01-22",entrega:"2026-01-24",obs:"Conversado com Bruna – NC pausada"},
+  {id:2,mes:"JANEIRO 2026",advogado:"Daniela",carteira:"AUTOS",caso:"G R MOTORS LTDA",distribuicao:"2026-01-15",entrega:"2026-01-03",obs:""},
+  {id:3,mes:"JANEIRO 2026",advogado:"Daniela",carteira:"AUTOS",caso:"RIBEIRO AUTOMOVEIS LTDA (Cód. 23876)",distribuicao:"2026-01-30",entrega:"2026-03-19",obs:""},
+  {id:4,mes:"JANEIRO 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"REVENDA 70185",distribuicao:"2026-01-15",entrega:"2026-01-29",obs:""},
+  {id:5,mes:"JANEIRO 2026",advogado:"Guilherme",carteira:"CONSIG",caso:"Rafael de Jesus Moreira – advogado agressor",distribuicao:"2026-01-08",entrega:"2026-01-30",obs:"Encaminhada em 30/01/2026 para correção"},
+  {id:6,mes:"JANEIRO 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"HC MOTORS LTDA",distribuicao:"2026-01-14",entrega:"2026-01-30",obs:"Encaminhada em 30/01/2026 para correção"},
+  {id:7,mes:"JANEIRO 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"OLEGARIO MULTIMARCAS",distribuicao:"2026-01-21",entrega:"2026-01-30",obs:"Encaminhada em 30/01/2026 para correção"},
+  {id:8,mes:"JANEIRO 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"Goldkar (Autos)",distribuicao:"2026-01-21",entrega:"2026-01-30",obs:"Encaminhada em 30/01/2026 para correção"},
+  {id:9,mes:"JANEIRO 2026",advogado:"Olivia",carteira:"AUTOS",caso:"Antonio Flavio da Fonseca",distribuicao:"2026-01-14",entrega:"2026-03-09",obs:""},
+  {id:10,mes:"JANEIRO 2026",advogado:"Olivia",carteira:"AUTOS",caso:"GABAO MOTORS COMERCIO DE VEICULOS LTDA",distribuicao:"2026-01-15",entrega:"2026-02-10",obs:""},
+  {id:11,mes:"JANEIRO 2026",advogado:"Olivia",carteira:"BANK",caso:"ITABORAÍ",distribuicao:"2026-01-21",entrega:"2026-02-13",obs:""},
+  {id:12,mes:"MARÇO 2026",advogado:"Anna Carolina",carteira:"BANK",caso:"ATACANTE MATHEUS",distribuicao:"2026-03-04",entrega:"2026-03-11",obs:"Encaminhado para Luiza em 12/03/2026"},
+  {id:13,mes:"MARÇO 2026",advogado:"Olivia",carteira:"BANK",caso:"ATACANTES",distribuicao:"2026-03-19",entrega:"2026-03-30",obs:"Relatório encaminhado em 19/03/2026"},
+  {id:14,mes:"MARÇO 2026",advogado:"Olivia",carteira:"AUTOS",caso:"INQ. POLICIAL/CÍVEL – RAFAEL AUGUSTO ANDRADE CALISTRO COMERCIO DE VEICULOS EIRELI (Cód. 10388)",distribuicao:"2026-03-16",entrega:"2026-03-20",obs:"Falta Protocolo"},
+  {id:15,mes:"MARÇO 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"INQ. POLICIAL/CÍVEL – VITO PEDOTE RODRIGUES (Cód. 10460)",distribuicao:"2026-03-16",entrega:"2026-03-26",obs:""},
+  {id:16,mes:"MARÇO 2026",advogado:"Olivia",carteira:"AUTOS",caso:"R. SANCHES LOPES",distribuicao:"2026-03-16",entrega:"2026-03-24",obs:""},
+  {id:17,mes:"MARÇO 2026",advogado:"Daniela",carteira:"AUTOS",caso:"REVENDA Cód.: 71746 - INOVA VEICULOS PR LTDA",distribuicao:"2026-03-16",entrega:"",obs:""},
+  {id:18,mes:"MARÇO 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"REVENDA Cód.: 33804 - SIQUEIRA & LACERDA",distribuicao:"2026-03-17",entrega:"2026-03-26",obs:""},
+  {id:19,mes:"MARÇO 2026",advogado:"Daniela",carteira:"AUTOS",caso:"INQUÉRITO POLICIAL_CÍVEL - REVENDA Cód.: 28086 - D&D MULTIMARCAS LTDA",distribuicao:"2026-03-23",entrega:"2026-03-25",obs:""},
+  {id:20,mes:"MARÇO 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"REVENDA Cód.: 48409 - PRIMO VEICULOS LTDA",distribuicao:"2026-03-30",entrega:"2026-04-09",obs:"Falta Protocolo"},
+  {id:21,mes:"ABRIL 2026",advogado:"Guilherme",carteira:"BANK",caso:"Proposta próxima dos 100 dias",distribuicao:"2025-12-11",entrega:"2026-04-15",obs:"100 DIAS DE ATRASO"},
+  {id:22,mes:"ABRIL 2026",advogado:"Anna Carolina",carteira:"AUTOS",caso:"REVENDA 46509 - CELIO I. M. MADRUGA LTDA",distribuicao:"2026-04-08",entrega:"2026-04-15",obs:""},
+  {id:23,mes:"ABRIL 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"REVENDA 71649 - HC MOTORS LTDA CNPJ 48142100000189",distribuicao:"2026-04-09",entrega:"",obs:""},
+  {id:24,mes:"ABRIL 2026",advogado:"Lena",carteira:"AUTOS",caso:"REVENDA Cód.: 72414 - VENDAS B CORDEIRO LTDA",distribuicao:"2026-04-10",entrega:"",obs:""},
+  {id:25,mes:"ABRIL 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"INQUÉRITO POLICIAL_CÍVEL - REVENDA Cód.: 20216 - DIAS NEGOCIOS",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:26,mes:"ABRIL 2026",advogado:"Olivia",carteira:"AUTOS",caso:"REVENDA 37098 - CAPISTRANO COMERCIO DE VEICULOS",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:27,mes:"ABRIL 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"REVENDA 31885 - A3 AUTOS COMERCIO",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:28,mes:"ABRIL 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"REVENDA 81860 - REDLINE MOTORS",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:29,mes:"ABRIL 2026",advogado:"Daniela",carteira:"BANK",caso:"Atacantes - Capão Canoa",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:30,mes:"ABRIL 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"J A MOTORS LTDA",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:31,mes:"ABRIL 2026",advogado:"Olivia",carteira:"AUTOS",caso:"REVENDA 32363 - B.M. DA COSTA LEITAO",distribuicao:"2026-04-15",entrega:"",obs:""},
+  {id:32,mes:"ABRIL 2026",advogado:"Olivia",carteira:"AUTOS",caso:"REVENDA 86052 - FIELDS MOTORS LTDA",distribuicao:"2026-04-16",entrega:"",obs:""},
+  {id:33,mes:"ABRIL 2026",advogado:"Daniela",carteira:"AUTOS",caso:"REVENDA Cód.: 12703 - GUSTAVO H DE F GONCALVES",distribuicao:"2026-04-16",entrega:"",obs:""},
+  {id:34,mes:"ABRIL 2026",advogado:"Gustavo",carteira:"AUTOS",caso:"BENIBRI MULTIMARCAS",distribuicao:"2026-04-16",entrega:"",obs:""},
+  {id:35,mes:"ABRIL 2026",advogado:"Anna Carolina",carteira:"AUTOS",caso:"TATA MULTIMARCAS LTDA",distribuicao:"2026-04-16",entrega:"",obs:""},
+  {id:36,mes:"ABRIL 2026",advogado:"Lena",carteira:"BANK",caso:"Imóvel Home Equity - Autos n. 5206694-14.2024.8.21.0001",distribuicao:"2026-04-20",entrega:"",obs:""},
+  {id:37,mes:"ABRIL 2026",advogado:"Guilherme",carteira:"AUTOS",caso:"VIANNA VEICULOS LTDA",distribuicao:"2026-04-20",entrega:"",obs:""}
+];
+
+let records = [];
+let nextId = 38;
+let editId = null;
+let scriptUrl = localStorage.getItem('nc_script_url') || '';
+let usandoDrive = false;
+let saveTimeout = null;
+
+// ─── STATUS ───────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const bar = document.getElementById('driveStatusBar');
+  const txt = document.getElementById('driveStatusText');
+  const spin = document.getElementById('driveSpinner');
+  bar.className = 'drive-status-bar no-print ' + state;
+  txt.textContent = msg;
+  spin.style.display = (state==='syncing'||state==='loading') ? 'inline-block' : 'none';
+}
+
+// ─── INICIALIZAÇÃO ────────────────────────────────────────────
+async function inicializar() {
+  const url = localStorage.getItem('nc_script_url');
+  if (url) {
+    scriptUrl = url;
+    await carregarDoDrive();
+  } else {
+    // Sem URL configurada: mostra modal de configuração
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('configModal').classList.add('open');
+    setStatus('config', '⚙️ Configure o Google Drive para sincronizar seus dados');
+    carregarLocal();
+  }
+}
+
+async function carregarDoDrive() {
+  document.getElementById('loadText').textContent = 'Carregando dados do Drive...';
+  document.getElementById('loadSub').textContent = 'Conectando ao servidor';
+  try {
+    const resp = await fetch(scriptUrl + '?action=load', { redirect: 'follow' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    if (data.empty) {
+      // Primeira vez: envia os dados iniciais para o Drive
+      records = JSON.parse(JSON.stringify(DADOS_INICIAIS));
+      nextId = 38;
+      await salvarNoDrive(true);
+    } else {
+      records = data.records || [];
+      nextId = data.nextId || 38;
+    }
+    usandoDrive = true;
+    document.getElementById('loadingOverlay').style.display = 'none';
+    const agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    setStatus('saved', '☁️ Sincronizado com Google Drive · atualizado às ' + agora);
+    renderAll();
+    checarNotificacoes();
+  } catch(e) {
+    console.error('Erro ao carregar do Drive:', e);
+    document.getElementById('loadingOverlay').style.display = 'none';
+    setStatus('error', '❌ Não foi possível conectar ao Drive — usando dados locais');
+    carregarLocal();
+    renderAll();
+  }
+}
+
+function carregarLocal() {
+  try {
+    const raw = localStorage.getItem('controle_nc_2026');
+    if (raw) {
+      const p = JSON.parse(raw);
+      records = p.records || [];
+      nextId = p.nextId || 38;
+    } else {
+      records = JSON.parse(JSON.stringify(DADOS_INICIAIS));
+      nextId = 38;
+    }
+  } catch(e) {
+    records = JSON.parse(JSON.stringify(DADOS_INICIAIS));
+    nextId = 38;
+  }
+}
+
+// ─── SALVAR ───────────────────────────────────────────────────
+function saveToStorage() {
+  // Sempre salva local como backup
+  try { localStorage.setItem('controle_nc_2026', JSON.stringify({records, nextId})); } catch(e) {}
+
+  if (!usandoDrive || !scriptUrl) {
+    setStatus('offline', '💾 Salvo localmente (Drive não configurado)');
+    return;
+  }
+
+  // Debounce: espera 800ms após última alteração para salvar
+  clearTimeout(saveTimeout);
+  setStatus('syncing', '☁️ Salvando no Drive...');
+  saveTimeout = setTimeout(() => salvarNoDrive(), 800);
+}
+
+async function salvarNoDrive(silencioso = false) {
+  try {
+    const dadosStr = encodeURIComponent(JSON.stringify({records, nextId}));
+    const data = await jsonp(scriptUrl + '?action=save&data=' + dadosStr);
+    if (data.error) throw new Error(data.error);
+    if (!silencioso) {
+      const agora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      setStatus('saved', '☁️ Salvo no Drive às ' + agora);
+    }
+  } catch(e) {
+    console.error('Erro ao salvar no Drive:', e);
+    setStatus('error', '❌ Erro ao salvar no Drive — dados salvos localmente');
+  }
+}
+
+// ─── CONFIGURAÇÃO ─────────────────────────────────────────────
+function abrirConfig() {
+  document.getElementById('scriptUrlInput').value = scriptUrl || '';
+  document.getElementById('configModal').classList.add('open');
+}
+
+async function conectarScript() {
+  const url = document.getElementById('scriptUrlInput').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')) {
+    alert('URL inválida. Deve começar com https://script.google.com');
+    return;
+  }
+  scriptUrl = url;
+  localStorage.setItem('nc_script_url', url);
+  document.getElementById('configModal').classList.remove('open');
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  usandoDrive = false;
+  await carregarDoDrive();
+}
+
+function usarSemDrive() {
+  document.getElementById('configModal').classList.remove('open');
+  document.getElementById('loadingOverlay').style.display = 'none';
+  usandoDrive = false;
+  setStatus('offline', '💾 Modo local — dados não sincronizados com Drive');
+  document.getElementById('subtitleSync').innerHTML = '💾 Modo local (sem sincronização)';
+  renderAll();
+}
+
+function resetData() {
+  if (!confirm('Apagar todos os dados e voltar aos dados originais?\n\nEssa ação não pode ser desfeita.')) return;
+  records = JSON.parse(JSON.stringify(DADOS_INICIAIS));
+  nextId = 38;
+  saveToStorage();
+  renderAll();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────
+function addWorkdays(dateStr, days) {
+  if (!dateStr) return null;
+  let d = new Date(dateStr + 'T12:00:00');
+  let added = 0;
+  while (added < days) { d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0&&w!==6) added++; }
+  return d;
+}
+function workdaysBetween(d1, d2) {
+  let cur = new Date(d1); cur.setDate(cur.getDate()+1); let c=0;
+  while(cur<=d2){const w=cur.getDay();if(w!==0&&w!==6)c++;cur.setDate(cur.getDate()+1);}
+  return c;
+}
+function calcStatus(r) {
+  const today = new Date(); today.setHours(12,0,0,0);
+  const prazo = addWorkdays(r.distribuicao, 10);
+  if (!prazo) return {key:'',label:'—',cls:'sd',rowCls:''};
+  if (r.entrega) {
+    const ed = new Date(r.entrega+'T12:00:00');
+    return ed<=prazo ? {key:'entregue',label:'✅ Entregue no prazo',cls:'se',rowCls:'row-entregue'}
+                     : {key:'atraso',label:'⚠️ Entregue com atraso',cls:'sat',rowCls:'row-vencido'};
+  }
+  if (today > prazo) return {key:'vencido',label:'🔴 VENCIDO',cls:'sv',rowCls:'row-vencido'};
+  const diff = workdaysBetween(today, prazo);
+  if (diff<=3) return {key:'breve',label:'🟠 Vence em breve',cls:'sb',rowCls:'row-breve'};
+  if (diff<=5) return {key:'atencao',label:'🟡 Atenção',cls:'sa',rowCls:'row-atencao'};
+  return {key:'emprazo',label:'✅ Em prazo',cls:'se',rowCls:'row-emprazo'};
+}
+function fmtDate(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function advBadge(adv){
+  const k=adv.startsWith('Anna')?'AC':adv.split(' ')[0];
+  return `<span class="adv-badge b-${k}">${adv}</span>`;
+}
+function getNcCount(adv, cart) {
+  const hist=(HIST[adv]||{})[cart]||0;
+  const cur=records.filter(r=>r.advogado===adv && r.carteira.trim()===cart).length;
+  return hist+cur;
+}
+function getTotalNc(adv){return CARTEIRAS.reduce((s,c)=>s+getNcCount(adv,c),0);}
+
+// ─── RENDER CONTROLE ──────────────────────────────────────────
+function renderControle() {
+  const q=document.getElementById('search').value.toLowerCase();
+  const fA=document.getElementById('f-adv').value;
+  const fC=document.getElementById('f-cart').value;
+  const fS=document.getElementById('f-stat').value;
+  let filtered=records.filter(r=>{
+    if(q && !r.caso.toLowerCase().includes(q) && !r.advogado.toLowerCase().includes(q)) return false;
+    if(fA && !r.advogado.includes(fA)) return false;
+    if(fC && r.carteira.trim()!==fC) return false;
+    if(fS && calcStatus(r).key!==fS) return false;
+    return true;
+  });
+  const all=records.map(r=>calcStatus(r));
+  const venc=all.filter(s=>s.key==='vencido').length;
+  const brev=all.filter(s=>s.key==='breve').length;
+  const empr=all.filter(s=>s.key==='emprazo'||s.key==='atencao').length;
+  const entr=all.filter(s=>s.key==='entregue').length;
+  document.getElementById('stats-main').innerHTML=`
+    <div class="stat-card s-purple"><div class="val">${records.length}</div><div class="lbl">Total NCs</div></div>
+    <div class="stat-card s-red"><div class="val">${venc}</div><div class="lbl">Vencidas 🔴</div></div>
+    <div class="stat-card s-orange"><div class="val">${brev}</div><div class="lbl">Vence em breve 🟠</div></div>
+    <div class="stat-card s-blue"><div class="val">${empr}</div><div class="lbl">Em prazo ✅</div></div>
+    <div class="stat-card s-green"><div class="val">${entr}</div><div class="lbl">Entregues 📦</div></div>`;
+  const tbody=document.getElementById('tbody-controle');
+  const empty=document.getElementById('empty-controle');
+  if(!filtered.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const monthOrder=['JANEIRO 2026','FEVEREIRO 2026','MARÇO 2026','ABRIL 2026','MAIO 2026','JUNHO 2026','JULHO 2026','AGOSTO 2026','SETEMBRO 2026','OUTUBRO 2026','NOVEMBRO 2026','DEZEMBRO 2026'];
+  const byMonth={};
+  filtered.forEach(r=>{if(!byMonth[r.mes])byMonth[r.mes]=[];byMonth[r.mes].push(r);});
+  let html='';
+  monthOrder.forEach(mes=>{
+    if(!byMonth[mes])return;
+    html+=`<tr class="month-row"><td colspan="9">📅 ${mes}</td></tr>`;
+    byMonth[mes].forEach(r=>{
+      const st=calcStatus(r);
+      const prazo=addWorkdays(r.distribuicao,10);
+      const prazoStr=prazo?prazo.toLocaleDateString('pt-BR'):'—';
+      html+=`<tr class="${st.rowCls}">
+        <td>${advBadge(r.advogado)}</td>
+        <td><span class="cart-tag">${r.carteira}</span></td>
+        <td><div class="caso-text">${r.caso}</div></td>
+        <td style="white-space:nowrap">${fmtDate(r.distribuicao)}</td>
+        <td style="white-space:nowrap;font-weight:600">${prazoStr}</td>
+        <td style="white-space:nowrap">${fmtDate(r.entrega)}</td>
+        <td><span class="status-badge ${st.cls}">${st.label}</span></td>
+        <td><div class="obs-text">${r.obs||''}</div></td>
+        <td class="no-print"><div class="actions">
+          ${!r.entrega
+            ? `<button class="icon-btn" onclick="marcarEntrega(${r.id})" title="Marcar entrega hoje">📦</button>`
+            : `<button class="icon-btn undo" onclick="desfazerEntrega(${r.id})" title="Desfazer entrega">↩️</button>`}
+          <button class="icon-btn" onclick="editNC(${r.id})">✏️</button>
+          <button class="icon-btn del" onclick="deleteNC(${r.id})">🗑️</button>
+        </div></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML=html;
+}
+
+// ─── RENDER RESUMO ────────────────────────────────────────────
+function renderResumo() {
+  const today=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const el=document.getElementById('print-date-resumo');
+  if(el) el.textContent='Gerado em '+today;
+  const data=ADVOGADOS.map(adv=>{
+    const total=getTotalNc(adv);
+    const entregues=records.filter(r=>r.advogado===adv && r.entrega).length;
+    const all=records.filter(r=>r.advogado===adv).map(r=>calcStatus(r));
+    const venc=all.filter(s=>s.key==='vencido'||s.key==='atraso').length;
+    const banco=getNcCount(adv,'BANK');
+    const autos=getNcCount(adv,'AUTOS');
+    const consig=getNcCount(adv,'CONSIG');
+    return {adv,total,entregues,venc,banco,autos,consig};
+  }).sort((a,b)=>b.total-a.total);
+  const maxTotal=Math.max(...data.map(d=>d.total),1);
+  const barCards=data.map(d=>`
+    <div class="adv-row">
+      <div class="adv-name">${advBadge(d.adv)}</div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(d.total/maxTotal*100)}%"></div></div>
+      <div class="cart-counts">BANK:${d.banco} · AUTOS:${d.autos} · CONSIG:${d.consig}</div>
+      <div class="adv-count">${d.total}</div>
+    </div>`).join('');
+  const tableRows=data.map(d=>`
+    <tr>
+      <td>${advBadge(d.adv)}</td>
+      <td style="text-align:center;font-weight:700">${d.total}</td>
+      <td style="text-align:center">${d.banco}</td>
+      <td style="text-align:center">${d.autos}</td>
+      <td style="text-align:center">${d.consig}</td>
+      <td style="text-align:center"><span class="status-badge se">${d.entregues}</span></td>
+      <td style="text-align:center">${d.venc>0?`<span class="status-badge sv">${d.venc}</span>`:'—'}</td>
+    </tr>`).join('');
+  document.getElementById('resumo-content').innerHTML=`
+    <div class="card" style="grid-column:1/-1">
+      <h3>📊 Carga por Advogado</h3>${barCards}
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <h3>📋 Tabela Detalhada</h3>
+      <div style="overflow:auto"><table style="min-width:500px">
+        <thead><tr style="background:#f7fafc">
+          <th>Advogado</th><th style="text-align:center">Total</th>
+          <th style="text-align:center">BANK</th><th style="text-align:center">AUTOS</th><th style="text-align:center">CONSIG</th>
+          <th style="text-align:center">Entregues</th><th style="text-align:center">Venc/Atraso</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ─── RENDER DISTRIBUIÇÃO ──────────────────────────────────────
+function renderDist() {
+  const today=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const el=document.getElementById('print-date-dist');
+  if(el) el.textContent='Gerado em '+today;
+  const distCards=CARTEIRAS.map(cart=>{
+    const ranking=ADVOGADOS.map(adv=>({adv,count:getNcCount(adv,cart),total:getTotalNc(adv)}))
+      .sort((a,b)=>a.count-b.count||a.total-b.total);
+    const rows=ranking.map((r,i)=>{
+      let cls='dist-normal',pos=`${i+1}º`;
+      if(i===0){cls='dist-1';pos='🟦 1º ← PRÓXIMO';}
+      else if(i===1||i===2){cls='dist-2';}
+      else if(i===ranking.length-1){cls='dist-last';pos=`🟥 ${i+1}º ← ÚLTIMO`;}
+      else if(i===Math.floor(ranking.length/2)){cls='dist-mid';}
+      return `<div class="dist-row ${cls}">
+        <span class="pos-label">${pos}</span>
+        <span style="flex:1;margin:0 8px">${advBadge(r.adv)}</span>
+        <span class="qty-badge">${r.count} NCs</span>
+      </div>`;
+    }).join('');
+    const icons={BANK:'🏦',AUTOS:'🚗',CONSIG:'📋'};
+    return `<div class="dist-card">
+      <h3>${icons[cart]||''} ${cart}</h3>
+      <div style="font-size:.72rem;color:#a0aec0;margin-bottom:10px">Próximo: <strong style="color:#1d4ed8">${ranking[0].adv}</strong> (${ranking[0].count} NCs)</div>
+      ${rows}
+    </div>`;
+  }).join('');
+  const tableRows=ADVOGADOS.map(adv=>{
+    const cols=CARTEIRAS.map(cart=>{
+      const count=getNcCount(adv,cart);
+      const rank=[...ADVOGADOS].sort((a,b)=>getNcCount(a,cart)-getNcCount(b,cart)||getTotalNc(a)-getTotalNc(b));
+      const pos=rank.indexOf(adv)+1;
+      const style=pos===1?'color:#1d4ed8;font-weight:700':pos===ADVOGADOS.length?'color:#991b1b;font-weight:700':'';
+      return `<td style="text-align:center;${style}">${count} <small style="color:#a0aec0">(#${pos})</small></td>`;
+    }).join('');
+    return `<tr><td>${advBadge(adv)}</td>${cols}<td style="text-align:center;font-weight:700">${getTotalNc(adv)}</td></tr>`;
+  });
+  document.getElementById('dist-content').innerHTML=distCards;
+  document.getElementById('dist-table-wrap').innerHTML=`
+    <div class="card">
+      <h3>📊 Tabela Comparativa — Total com histórico</h3>
+      <div style="overflow:auto"><table style="min-width:400px">
+        <thead><tr style="background:#f7fafc">
+          <th>Advogado</th><th style="text-align:center">🏦 BANK</th>
+          <th style="text-align:center">🚗 AUTOS</th><th style="text-align:center">📋 CONSIG</th>
+          <th style="text-align:center">TOTAL</th>
+        </tr></thead>
+        <tbody>${tableRows.join('')}</tbody>
+      </table></div>
+      <p style="font-size:.72rem;color:#a0aec0;margin-top:10px">* Inclui NCs históricas anteriores ao controle atual.</p>
+    </div>`;
+}
+
+// ─── MODAL / CRUD ─────────────────────────────────────────────
+function openModal(id=null){
+  editId=id;
+  const today=new Date().toISOString().split('T')[0];
+  if(id){
+    const r=records.find(x=>x.id===id);
+    document.getElementById('modalTitle').textContent='Editar NC';
+    document.getElementById('inp-mes').value=r.mes;
+    document.getElementById('inp-adv').value=r.advogado;
+    document.getElementById('inp-carteira').value=r.carteira;
+    document.getElementById('inp-caso').value=r.caso;
+    document.getElementById('inp-dist').value=r.distribuicao;
+    document.getElementById('inp-entrega').value=r.entrega;
+    atualizarPrazoModal();
+    document.getElementById('inp-obs').value=r.obs;
+  } else {
+    document.getElementById('modalTitle').textContent='Nova NC';
+    document.getElementById('inp-mes').value='ABRIL 2026';
+    document.getElementById('inp-adv').value='Anna Carolina';
+    document.getElementById('inp-carteira').value='AUTOS';
+    document.getElementById('inp-caso').value='';
+    document.getElementById('inp-dist').value=today;
+    document.getElementById('inp-entrega').value='';
+    atualizarPrazoModal();
+    document.getElementById('inp-obs').value='';
+  }
+  document.getElementById('modalBg').classList.add('open');
+}
+function editNC(id){openModal(id);}
+function atualizarPrazoModal(){
+  const val=document.getElementById('inp-dist').value;
+  const el=document.getElementById('prazo-preview');
+  if(!val){el.textContent='';return;}
+  const prazo=addWorkdays(val,10);
+  if(prazo) el.textContent='📅 Prazo final: '+prazo.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');editId=null;}
+function saveNC(){
+  const caso=document.getElementById('inp-caso').value.trim();
+  if(!caso){alert('Informe o NC/Caso.');return;}
+  const obj={
+    mes:document.getElementById('inp-mes').value,
+    advogado:document.getElementById('inp-adv').value,
+    carteira:document.getElementById('inp-carteira').value,
+    caso,
+    distribuicao:document.getElementById('inp-dist').value,
+    entrega:document.getElementById('inp-entrega').value,
+    obs:document.getElementById('inp-obs').value.trim()
+  };
+  if(editId){Object.assign(records.find(x=>x.id===editId),obj);}
+  else{records.push({id:nextId++,...obj});}
+  closeModal();
+  saveToStorage();
+  renderAll();
+}
+function marcarEntrega(id){
+  const r=records.find(x=>x.id===id);
+  if(r){r.entrega=new Date().toISOString().split('T')[0];saveToStorage();renderAll();}
+}
+function desfazerEntrega(id){
+  const r=records.find(x=>x.id===id);
+  if(!r)return;
+  if(!confirm(`Desfazer entrega de "${r.caso}"?`))return;
+  r.entrega='';
+  saveToStorage();
+  renderAll();
+}
+function deleteNC(id){
+  if(!confirm('Remover esta NC?'))return;
+  records=records.filter(x=>x.id!==id);
+  saveToStorage();
+  renderAll();
+}
+
+// ─── TABS ─────────────────────────────────────────────────────
+function showTab(tab){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelectorAll('.tab')[['controle','resumo','dist'].indexOf(tab)].classList.add('active');
+  if(tab==='resumo')renderResumo();
+  if(tab==='dist')renderDist();
+}
+function renderAll(){renderControle();renderResumo();renderDist();}
+
+document.getElementById('modalBg').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('configModal').addEventListener('click',function(e){if(e.target===this && usandoDrive) this.classList.remove('open');});
+
+// ─── NOTIFICAÇÕES ─────────────────────────────────────────────
+function checarNotificacoes() {
+  if (!('Notification' in window)) return;
+  const ncs=records.filter(r=>{
+    if(r.entrega)return false;
+    const st=calcStatus(r);
+    return st.key==='vencido'||st.key==='breve'||st.key==='atencao';
+  });
+  if(!ncs.length)return;
+  function disparar(){
+    const vencidas=ncs.filter(r=>calcStatus(r).key==='vencido');
+    const proximas=ncs.filter(r=>calcStatus(r).key==='breve'||calcStatus(r).key==='atencao');
+    if(vencidas.length>0) new Notification('🔴 NCs VENCIDAS — '+vencidas.length+' caso(s)',{body:vencidas.map(r=>'• '+r.advogado+': '+r.caso).join('\n'),requireInteraction:true});
+    if(proximas.length>0) setTimeout(()=>new Notification('⚠️ NCs próximas do prazo — '+proximas.length+' caso(s)',{body:proximas.map(r=>'• '+r.advogado+': '+r.caso).join('\n')}),1500);
+  }
+  if(Notification.permission==='granted')disparar();
+  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')disparar();});
+}
+
+// ─── INICIA ───────────────────────────────────────────────────
+inicializar();
+</script>
+</body>
+</html>
