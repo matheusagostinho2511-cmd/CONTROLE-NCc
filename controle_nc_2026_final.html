@@ -372,8 +372,9 @@ function setStatus(state, msg) {
 
 // ─── INICIALIZAÇÃO ────────────────────────────────────────────
 async function inicializar() {
-  binId = localStorage.getItem('nc_bin_id') || '';
-  apiKey = localStorage.getItem('nc_api_key') || '';
+  // Usa valor do localStorage se existir, senão usa o valor embutido
+  binId = localStorage.getItem('nc_bin_id') || binId;
+  apiKey = localStorage.getItem('nc_api_key') || apiKey;
   if (binId && apiKey) {
     await carregarDaNuvem();
   } else {
